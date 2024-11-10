@@ -90,12 +90,8 @@
     </div>
 
     <script>
-        // Sample bot responses
-        const botResponses = {
-            greeting: "Hello! I'm here to help you gather requirements for your website project.",
-            clarify: "Could you please clarify that requirement a bit more?",
-            goodbye: "Goodbye! Feel free to reach out whenever you're ready to continue."
-        };
+        // Flask ngrok public URL for the backend
+        const apiUrl = "https://f030-34-91-145-50.ngrok-free.app";  // Change this with your ngrok URL
 
         // Function to display a message in the chat box
         function displayMessage(message, sender) {
@@ -110,22 +106,42 @@
         // Function to send a message
         function sendMessage() {
             const userInput = document.getElementById("user-input").value;
-
             if (userInput.trim() === "") return;
 
-            // Display user's message
+            // Display the user's message
             displayMessage(userInput, "user");
 
-            // Process the response
-            let response = botResponses.greeting; // Default response for testing
-            if (userInput.toLowerCase().includes("bye")) {
-                response = botResponses.goodbye;
-            } else if (userInput.toLowerCase().includes("clarify")) {
-                response = botResponses.clarify;
-            }
+            // Make API call to get the bot's response
+            fetch(`${apiUrl}/get_question?website_type=E-commerce`)
+                .then(response => response.json())
+                .then(data => {
+                    const question = data.question;
+                    const followUp = data.follow_up[0];  // First follow-up question (if any)
 
-            // Display bot's response
-            setTimeout(() => displayMessage(response, "bot"), 1000);
+                    // Display the question from the bot
+                    displayMessage(question, "bot");
+
+                    // Send the user's response to submit
+                    fetch(`${apiUrl}/submit_response`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            response: userInput,
+                            website_type: "E-commerce"  // Pass the website type here
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const botMessage = data.message;
+                        displayMessage(botMessage, "bot");  // Display confirmation or error message
+                    });
+                })
+                .catch(error => {
+                    displayMessage("Error: Unable to connect to the server.", "bot");
+                    console.error('Error:', error);
+                });
 
             // Clear the input field
             document.getElementById("user-input").value = "";
