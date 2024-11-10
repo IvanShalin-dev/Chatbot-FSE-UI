@@ -5,84 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Requirement Gathering Chatbot</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f4f8;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-
-        .chat-container {
-            width: 400px;
-            height: 600px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-box {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-box .message {
-            margin: 10px 0;
-        }
-
-        .chat-box .user {
-            text-align: right;
-            color: blue;
-        }
-
-        .chat-box .bot {
-            text-align: left;
-            color: green;
-        }
-
-        .input-container {
-            display: flex;
-            padding: 10px;
-            background-color: #fafafa;
-            border-top: 1px solid #ddd;
-        }
-
-        .input-container input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        .input-container button {
-            padding: 10px 15px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            margin-left: 10px;
-            cursor: pointer;
-        }
-
-        .input-container button:hover {
-            background-color: #45a049;
-        }
+        /* Add your CSS styling */
     </style>
 </head>
 <body>
-
     <div class="chat-container">
         <div class="chat-box" id="chat-box">
             <!-- Messages will appear here -->
         </div>
-
         <div class="input-container">
             <input type="text" id="user-input" placeholder="Type your message..." />
             <button onclick="sendMessage()">Send</button>
@@ -90,10 +20,58 @@
     </div>
 
     <script>
-        // Flask ngrok public URL for the backend
-        const apiUrl = "https://cb59-34-91-145-50.ngrok-free.app";  // Change this with your ngrok URL
+        // Fetch the question when the page loads or when it's time to ask
+        function getQuestion() {
+            const websiteType = 'E-commerce';  // Set this dynamically if needed (e.g., through user input or selection)
+            fetch(`https://60f8-34-91-145-50.ngrok-free.app/get_question?website_type=${websiteType}`)
+                .then(response => response.json())
+                .then(data => {
+                    displayMessage(data.question, 'bot');  // Display the question
+                    if (data.follow_up) {
+                        displayMessage(data.follow_up, 'bot');  // Optionally show follow-up questions
+                    }
+                })
+                .catch(error => console.error('Error fetching question:', error));
+        }
 
-        // Function to display a message in the chat box
+        // Send user response to backend
+        function sendMessage() {
+            const userInput = document.getElementById("user-input").value;
+            if (userInput.trim() === "") return;
+
+            // Display user's message
+            displayMessage(userInput, "user");
+
+            // Send user input to the backend to validate, check conflicts, and store
+            const websiteType = 'E-commerce';  // Adjust if needed
+            const responseData = {
+                response: userInput,
+                website_type: websiteType
+            };
+
+            fetch('https://60f8-34-91-145-50.ngrok-free.app/submit_response', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(responseData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === "Response stored successfully!") {
+                    displayMessage('Your response has been stored successfully.', 'bot');
+                    getQuestion();  // Ask next question
+                } else {
+                    displayMessage('There was an issue with your response: ' + data.message, 'bot');
+                }
+            })
+            .catch(error => console.error('Error submitting response:', error));
+
+            // Clear the input field
+            document.getElementById("user-input").value = "";
+        }
+
+        // Display messages in chat box
         function displayMessage(message, sender) {
             const chatBox = document.getElementById("chat-box");
             const messageElement = document.createElement("div");
@@ -103,50 +81,8 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Function to send a message
-        function sendMessage() {
-            const userInput = document.getElementById("user-input").value;
-            if (userInput.trim() === "") return;
-
-            // Display the user's message
-            displayMessage(userInput, "user");
-
-            // Make API call to get the bot's response
-            fetch(`${apiUrl}/get_question?website_type=E-commerce`)
-                .then(response => response.json())
-                .then(data => {
-                    const question = data.question;
-                    const followUp = data.follow_up[0];  // First follow-up question (if any)
-
-                    // Display the question from the bot
-                    displayMessage(question, "bot");
-
-                    // Send the user's response to submit
-                    fetch(`${apiUrl}/submit_response`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            response: userInput,
-                            website_type: "E-commerce"  // Pass the website type here
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        const botMessage = data.message;
-                        displayMessage(botMessage, "bot");  // Display confirmation or error message
-                    });
-                })
-                .catch(error => {
-                    displayMessage("Error: Unable to connect to the server.", "bot");
-                    console.error('Error:', error);
-                });
-
-            // Clear the input field
-            document.getElementById("user-input").value = "";
-        }
+        // Call getQuestion when the page loads
+        getQuestion();
     </script>
-
 </body>
 </html>
